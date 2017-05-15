@@ -1,0 +1,229 @@
+#!/bin/bash
+# Name: Jeffrey Schachtsick
+# Course: CS344 - Operating Systems 1
+# Assignment: Program 1
+# Last Update: 04/14/2016
+# Program Overview: This program is to take as an input either a file or standard input
+#	with numbers, read all teh values into rows and columns, process statistics
+# 	as either rows or columns to calculate teh average and median, and all errors
+# 	(if any) or statistics are reported as standard output to display for user.
+# NOTE: When executing this program, it will remove all files starting with 'temp'
+
+# Use the trap command for an interrupt, hangup, or terminate of script
+trap "rm -f temp*; exit 1" INT HUP TERM
+
+# Determine if data is being passed as a file or stdin
+datafilepath="datafile$$"
+if [ "$#" = "1" ]
+then
+	cat > "$datafilepath"
+elif [ "$#" = "2" ]
+then
+	datafilepath=$2
+# When arguments are greater than 2, exit with 1 and print usage text
+elif [ "$#" > "2" ]
+then 
+	echo "Usage: stats {-rows | -cols} [file]" 1>&2
+	exit 1
+fi
+
+# Handle for whether input file exists and is readable, Exit 1 should file not be found
+if test ! -r "$datafilepath" -a -f "$datafilepath"
+then
+	echo "stats: cannot read $datafilepath" 1>&2
+	exit 1
+fi
+
+# Handle for arguements, decide if user wants row or columns.  Error if neither.
+# Decision for first argument when -r* for rows.
+if [[ $1 == -r* ]];
+then 
+	# if the file is not empty, execute the rest
+	if [ -s "$datafilepath" ]
+	then
+		# Execute calculating row statistics here
+		echo "Average Median"
+		# Count for number of rows
+		rows=0
+		# Loop to read each line of the input file
+		# Used elements of the while loop from the following source
+		# stackoverflow.com/questions/973602/bash-read-tab-separated-file-line-into-array
+		while IFS=$'\t' read -r -a cur_row_line
+		do
+			rows=`expr $rows + 1`
+			# echo "Row $rows: "
+			columns=0
+			sum_row=0	
+			# Add the sum and count number of columns for each element in row
+			for i in "${cur_row_line[@]}"
+			do
+				sum_row=`expr $sum_row + $i`
+				columns=`expr $columns + 1`
+			#	echo " $i"
+			done
+			# Sort the line to gather the median
+			# Used the following two lines from this source to help sort:
+			# stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash
+			IFS=$'\n' sortedLine=($(sort <<<"${cur_row_line[*]}"))
+			unset IFS
+			# echo "My sorted line: $sortedLine"
+			# Find the median by first establishing if the number of elements is even or odd
+			# if there is only one item
+			divnum=`expr $columns / 2`
+			if [ $columns -eq 1 ]
+			then
+				median="${sortedLine[$divnum]}"
+			else
+				divnum=`expr $divnum + 1`
+				median="${sortedLine[$divnum]}"
+			fi
+			# The following display of average, I sourced from discussion board from Shoshana Abrass from Project 1
+			printf "%.0f" $(echo "scale=1; $sum_row / $columns" | bc)
+			echo -e "\t$median"
+		done <$datafilepath
+	# Otherwise just print the title with empty line
+	else
+		echo -e "Average Median\n"
+	fi
+# Condition should the first arguement be for columns, in this case starting with -c
+elif [[ $1 == -c* ]];
+then
+	# if the file is not empty execute the rest of script
+	if [ -s "$datafilepath" ]
+	then
+		# Start to execute values by column
+		# Get a count of number of rows
+		rows=0
+		# Loop to read each line of the input file
+		# Used elements of the while loop from the following source
+		# stackoverflow.com/questions/973602/bash-read-tab-separated-file-line-into-array
+		while IFS=$'\t' read -r -a curLine
+		do
+			# count the rows
+			rows=`expr $rows + 1`
+			#echo "Row $rows: "
+			columns=0
+			sum_col=0
+			# Decision to see if this is the first line in input file
+			if [ $rows -eq 1 ]
+			then
+				# For each element in first row, send it to it's temp file corresponded to column number and do calcs
+				for j in "${curLine[@]}"
+				do
+					# Creates a temp file appending the column number at the end for organization
+					TMP=tempCol$columns
+					# Add the value to temp file, without adding a new line
+					echo -n "$j" > "$TMP" 
+					numCol=$columns
+					columns=`expr $columns + 1`
+				done
+			else
+				# Here, put each subsequent value in the column into a row in it's corresponding temp file
+				# Reset number of columns
+				columns=0
+				# Read each item after line 1
+				for k in "${curLine[@]}"
+				do
+					TMP=tempCol$columns
+					# Without adding a new line, insert value to temp file
+					echo -e -n "\t$k" >> "$TMP"
+					# Make a new line if this is the last column for easier printing
+					if [ $columns -eq $numCol ]
+					then
+						echo -e "" >> "$TMP$$"
+					fi
+					columns=`expr $columns + 1`
+				done
+			fi
+		done <$datafilepath
+		# Create a temp file, just in case there is no input
+		touch tempFile
+		# Using the cat command to each temp file, copy contents of each to a tempFile
+		counter=0
+		while [ $counter -le $numCol ]
+		do
+			filename="tempCol$counter"
+			counter=`expr $counter + 1`
+			cat $filename >> tempFile
+			echo -e "" >> tempFile
+		done
+		# Same process as rows above, but different display as specified in specs.  Output averages and medians to temp files
+		# Get a count of number of rows
+		rows=0
+		med_insert=0
+		avg_insert=0
+		# Create both the temp Median and Average files in case there is no data
+		touch tempMedian
+		touch tempAvg
+		# Loop to read each line of the input file
+		# The following while loop code was taken from the following source:
+		# stackoverflow.com/questions/973602/bash-read-tab-separated-file-line-into-array
+		while IFS=$'\t' read -r -a colLine
+		do
+			#count rows
+			rows=`expr $rows + 1`
+			#echo "Row $rows: "
+			columns=0
+			sum=0
+			# For each element in the line, add to sum
+			for m in "${colLine[@]}"
+			do
+				sum=`expr $sum + $m`
+				columns=`expr $columns + 1`
+				# echo " $m"
+			done
+			# Sort the line in the file to obtain the median
+			# Next two lines taken from the following source:
+			# stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash
+			IFS=$'\n' sortedLine=($(sort <<<"${colLine[*]}"))
+			unset IFS
+			#echo "My sorted line: $sortedLine"
+			# Find the median by determining if teh number of elements is even or odd
+			divnum=`expr $columns / 2`
+			if [ $columns -eq 1 ]
+			then
+				median="${sortedLine[$divnum]}"
+			else
+				divnum=`expr $divnum + 1`
+				median="${sortedLine[$divnum]}"
+			fi	
+			if [ $med_insert -eq 0 ]
+			then
+				echo -n "$median" > tempMedian
+				med_insert=`expr $med_insert + 1`
+			else
+				echo -e -n "\t$median" >> tempMedian
+			fi
+			# Calculate the averages, decide if print first average or subsequent averages
+			if [ $avg_insert -eq 0 ]
+			then
+				printf "%.0f" $(echo "scale=2; ($sum / $columns) + 0.01" | bc) > tempAvg
+				avg_insert=`expr $avg_insert + 1`
+			else
+				echo -e -n "\t" >> tempAvg
+				printf "%.0f" $(echo "scale=2; ($sum / $columns) + 0.01" | bc) >> tempAvg
+			fi
+		done < tempFile
+		# Display both median and average files
+		echo "Averages: "
+		cat tempAvg
+		echo ""
+		echo "Medians: "
+		cat tempMedian
+		echo ""
+		# Clear out temp files
+		rm -f ./temp*
+	#Otherwise print Average and Medians as empty
+	else
+		echo -e "Averages: \n"
+		echo -e "Medians: \n"
+	fi
+	
+else
+	# Exit program with 1 when too few or too many args, state usage to display
+	echo "Usage: stats {-rows | -cols} [file]" 1>&2
+	exit 1
+fi
+# Remove datafile with the process id at the end.
+rm -f datafile*
+exit 0

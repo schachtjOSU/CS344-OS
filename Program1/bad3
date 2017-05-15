@@ -1,0 +1,74 @@
+#!/bin/bash
+#
+# Program 1
+#
+# To create a test run of your program put this file and your stats
+# program, which must be named "stats", together in a directory.  Then run
+# this command, which will take perhaps 15 seconds:
+#
+# % p1gradingscript > p1results
+#
+# Your whole program must be contained in the single file named "stats".
+#
+
+LS=/bin/ls
+RM=rm
+PS=/bin/ps
+TESTDIR=assign1.test.$$
+STATS=./stats
+
+if test -d $TESTDIR
+	then
+		echo Please rename or remove $TESTDIR
+		exit 1
+fi
+
+mkdir $TESTDIR 2>&1
+cp stats $TESTDIR 2>&1
+
+cd $TESTDIR 2>&1
+chmod +x stats 2>&1
+
+echo --------------------------------------------------------------------------
+echo Creating file1 file2 file3 file4 file5
+echo
+cat > file1 <<EOF
+93	93	93	93	93	93	93	93	100
+73	84	95	83	72	86	80	97	100
+85	0	82	75	88	79	80	81	100
+85	0	87	73	88	79	80	71	100
+80	81	83	63	100	85	63	68	100
+53	57	61	53	70	61	73	50	100
+55	54	41	63	63	45	33	41	100
+53	55	43	44	63	75	35	21	100
+100	100	100	100	100	100	100	100	100
+EOF
+cat > file2 <<EOF
+97	95	93	91
+86	80	97	99
+61	73	50	100
+95	94	93	92
+EOF
+cat > file3 <<EOF
+17
+EOF
+cat > file4 <<EOF
+EOF
+i=0
+while [ $i -lt 50000 ]
+do
+	echo "$i	`expr $i \* 2`"
+	i=`expr $i + 100`
+done > file5
+echo
+$LS -l 2>&1
+echo
+echo
+
+echo 
+echo Wrong Format: 1 point for usage text, 2 points for exit value 1
+$STATS file1 file2 2> err.out
+echo Exit Value: $?
+echo Error Message:
+cat err.out
+echo

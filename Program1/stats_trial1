@@ -1,0 +1,56 @@
+#!/bin/bash
+# Name: Jeffrey Schachtsick
+# Course: CS344 - Operating Systems 1
+# Assignment: Program 1
+# Last Update: 04/01/2016
+# Program Overview: This program is to take as an input either a file or standard input
+#      with numbers, read all the values into rows and columns, process statistics
+#      as either rows or columns to calculate the average and median, and all errors
+#      (if any) or statistics are reported as standard output to display for user.
+# THIS IS A TEST SCRIPT - JUST TO SEE IF I CAN ADEQUATELY READ-IN A FILE and output it.
+
+# Get a count of number of rows
+rows=0
+
+# read each line by the row in the file
+# partial credit for IFS function and read found in stackoverflow.com/questions/973602/bash-read-tab-separated-file-line-into-array
+while IFS=$'\t' read -r -a myLine
+do
+	#count rows
+	rows=`expr $rows + 1`
+	echo "Row $rows: "
+	columns=0
+	sum=0
+	# get values for each element in row
+	for i in "${myLine[@]}"
+	do
+		sum=`expr $sum + $i`
+		columns=`expr $columns + 1`
+		echo " $i"
+	done
+	# sort the array
+	# Next two lines taken from stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash
+	IFS=$'\n' sortedLine=($(sort <<<"${myLine[*]}"))
+	unset IFS
+	echo "My sorted line: $sortedLine"
+	# Find the median by first establishing if the number of elements is even or odd
+	remainder=`expr $columns % 2`
+	divnum=`expr $columns / 2`
+	# If there is a remainder, must be odd and median is the middle element
+	if [ $remainder -gt 0 ]
+	then
+		echo "This is odd"
+		median="${sortedLine[$divnum]}"
+		echo "The median is: $median"	
+	# Otherwise it's even, spec says choose the bigger of the two middle
+	# Easiest to choose divnum and use that to get the median
+	else
+		echo "This is even"
+		median="${sortedLine[$divnum]}"
+		echo "The median is: $median"
+	fi
+	echo "Number of columns: $columns"
+	average=`expr $sum / $columns`
+	echo "Average for row is: $average"
+done <$1
+echo "Number of rows: $rows"
